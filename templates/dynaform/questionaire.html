@@ -1,0 +1,21 @@
+{%extends 'base.html'%}
+
+{% block content %}
+    <h5>Questionaire to create the document</h5>
+    <form method="post">
+        {% csrf_token %}
+	    {% for i in "12" %}
+	        {% for field in form %}
+			    <div class="fieldWrapper">
+			        {{ field.errors }}
+			        {{ field.label_tag }} {{ field }}
+			        {% if field.help_text %}
+			        <p class="help">{{ field.help_text|safe }}</p>
+			        {% endif %}
+			    </div>
+			{% endfor %}
+		{%endfor%}
+        <input type="submit" value="Create Comment">
+    </form>
+
+{% endblock %}

@@ -1,0 +1,11 @@
+{%extends 'base.html'%}
+
+{% block content %}
+    <h5>Questionaire to create the document</h5>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <input type="submit" value="Create Comment">
+    </form>
+
+{% endblock %}
