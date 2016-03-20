@@ -18,14 +18,17 @@ def questionaire_view(request,lq_id):
 		p = LegalQuestionaire.objects.get(pk=lq_id)
 		form = QuestionsForm(request.POST,questionaire=lq_id)
 		if request.method =='POST':
-			dumpclean(request.POST)
-
+			print "DUMP CLEAN OF REQUEST"
+			print request.POST
+			#dumpclean(request.POST)
+			#print "\n\n\n\n\n"
+			#print form.getlist('custom_why would you use linux')
+			print "\n\n\n\n\n"
+				
 			if form.is_valid():
-				print "\n\n\n\n\n"
-				#print form.getlist('custom_why would you use linux')
-				print "\n\n\n\n\n"
+				print "DUMP CLEAN OF FORM DATA"
 				print form.cleaned_data
-				dumpclean(form.cleaned_data)
+				#dumpclean(form.cleaned_data)
 				return HttpResponseRedirect('/')
 
 		else:
