@@ -1,11 +1,57 @@
 {%extends 'base.html'%}
+{% load staticfiles %}
 
 {% block content %}
+	<script type="text/html" id="item-template">
+	<div id="item-__prefix__">
+	    {{ formset.empty_form }}
+	    
+	</div>
+	</script>
     <h5>Questionaire to create the document</h5>
-    <form method="post">
+	<form id="form" method="post" action="">
         {% csrf_token %}
-        {{ form.as_p }}
-        <input type="submit" value="Create Comment">
-    </form>
-
+        	
+        
+        
+	    <div id="items-form-container">
+	    	{{formset.management_form}}
+	        {% for form in formset %}
+				 <div class="form-item" id="item-{{ forloop.counter0 }}">
+				 {{ form.id }}
+				 {{ form.as_table }}
+		        </div>
+		    {% endfor %}
+		</div>
+		<a href="#" id="add-item-button" class="btn btn-info add-item">Add Item</a>		
+	    <input type="submit" value="Submit and Create Doc">
+	</form>
 {% endblock %}
+
+
+{%block javascript%}
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+<script href="{% static "js/underscore.js" %}"></script>
+<script >
+$( document ).ready(function() {
+    $('.add-item').click(function(ev) {
+        console.log("Clicked!")
+        ev.preventDefault();
+        //var count = $('#items-form-container').children().length;
+        var count = $('#items-form-container').children(".form-item").size();
+        console.log("count = "+ count)
+        var tmplMarkup = $('#item-template').html();
+        var compiledTmpl = tmplMarkup.replace(/__prefix__/g, count);
+        console.log(compiledTmpl)
+        $('div #items-form-container').append(compiledTmpl);
+        // update form count
+        $('#id_form-TOTAL_FORMS').attr('value', count+1);
+        console.log($('#id_form-TOTAL_FORMS').val())
+    })
+});
+</script>
+
+
+{%endblock%}
+    

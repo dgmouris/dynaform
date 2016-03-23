@@ -3,7 +3,7 @@ from django.views.generic import ListView, CreateView
 from django.views.generic import View
 from django.http import Http404
 from django.http import HttpResponseRedirect
-
+from django.forms.formsets import formset_factory
 from models import LegalQuestionaire,Questions,LegalTemplates
 from forms import QuestionsForm,LegalTemplatesUploadForm
 
@@ -13,10 +13,51 @@ class HomeView(ListView):
 	template_name = 'base.html'
 	queryset = LegalQuestionaire.objects.all()
 
+
+def formset_view(request,lq_id):
+	try:
+		p = LegalQuestionaire.objects.get(pk=lq_id)
+		form = QuestionsForm(request.POST,questionaire=lq_id)
+		QuestionsFormset = formset_factory(QuestionsForm)
+		print "\n\n\n\n\n"
+		print "POST QUERY DICT"
+		print request.POST
+		if request.method == 'POST':
+			formset = QuestionsFormset(request.POST,form_kwargs={'questionaire':lq_id})
+			
+			if formset.is_valid():
+				
+				print "\n\n\n\n\n"
+				print "FORMSET DATA"
+				print formset.cleaned_data
+				
+				for form in formset:
+					print "\n\n"
+					print "FORM Data "
+					print(form.cleaned_data)
+			else:
+				print "it didn'st work"
+		else:
+			formset = QuestionsFormset(form_kwargs={'questionaire':lq_id})
+			print "nothing"
+		return render(request, 'dynaform/questionaire_v1.html', {'formset': formset})
+
+	except LegalQuestionaire.DoesNotExist:
+		raise Http404("LegalQuestionaire does not exist")	
+	return render(request, 'dynaform/questionaire_v1.html', {'formset': formset})
+
+
+
+
 def questionaire_view(request,lq_id):
 	try:
 		p = LegalQuestionaire.objects.get(pk=lq_id)
 		form = QuestionsForm(request.POST,questionaire=lq_id)
+		form2 = QuestionsForm(request.POST,questionaire=lq_id)
+		sub_form = QuestionsForm(request.POST,questionaire=2)
+		
+
+
 		if request.method =='POST':
 			print "DUMP CLEAN OF REQUEST"
 			print request.POST
@@ -30,7 +71,8 @@ def questionaire_view(request,lq_id):
 				print form.cleaned_data
 				#dumpclean(form.cleaned_data)
 				return HttpResponseRedirect('/')
-
+			else:
+				print form.errors
 		else:
 			form = QuestionsForm(questionaire=lq_id)
 			return render(request, 'dynaform/questionaire.html', {'form': form})
@@ -74,10 +116,6 @@ def legal_template_upload_view(request):
 	return render(
 		request,'dynaform/legal_template_form.html',{'documents': documents, 'form': form},
 	)
-
-
-
-
 
 '''
 class QuestionaireView(CreateView):

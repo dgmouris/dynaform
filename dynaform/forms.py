@@ -21,10 +21,7 @@ class QuestionsForm(forms.Form):
 
 		questionaire = LegalQuestionaire.objects.get(pk=self.questionaire)
 		questions= Questions.objects.filter(questionaire=questionaire)
-		print questions
 		for question in questions:
-			print question.label + " " + str(question.field_type)
-
 			#self.fields['custom_%s' % question.label] = forms.CharField(max_length=255) 
 			self.fields['custom_%s' % question.label] = FIELD_TYPES[question.field_type]
 
