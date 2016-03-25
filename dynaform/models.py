@@ -31,8 +31,25 @@ class Questions(models.Model):
 	def __unicode__(self):
 		return unicode(self.label)
 
+
+
+
+
 class LegalDocuments(models.Model):
 	docfile = models.FileField(upload_to='documents/')
 
 class LegalTemplates(models.Model):
 	docfile = models.FileField(upload_to='docx-templates/')
+
+
+class FormBaseLevel(models.Model):
+	name = models.ForeignKey(LegalQuestionaire)
+	if_formset = models.BooleanField()
+	
+'''
+create the 4 nest levels 
+legal questionaire as foreign key
+include a parent field
+and a child field
+as well maybe a ref field to some value in the parent or something.
+''' 

@@ -25,6 +25,7 @@ def formset_view(request,lq_id):
 		if request.method == 'POST':
 			formset = QuestionsFormset(request.POST,form_kwargs={'questionaire':lq_id})
 			
+
 			if formset.is_valid():
 				
 				print "\n\n\n\n\n"
