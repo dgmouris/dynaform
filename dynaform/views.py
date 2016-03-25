@@ -14,7 +14,44 @@ class HomeView(ListView):
 	queryset = LegalQuestionaire.objects.all()
 
 
+
+def multi_formset_view(request,lq_id):
+	#a nested 
+	try:
+		p = LegalQuestionaire.objects.get(pk=lq_id)
+		form = QuestionsForm(request.POST,questionaire=lq_id)
+		QuestionsFormset = formset_factory(QuestionsForm)
+		print "\n\n\n\n\n"
+		print "POST QUERY DICT"
+		print request.POST
+		if request.method == 'POST':
+			formset = QuestionsFormset(request.POST,form_kwargs={'questionaire':lq_id})
+			
+			if formset.is_valid():
+				
+				print "\n\n\n\n\n"
+				print "FORMSET DATA"
+				print formset.cleaned_data
+				
+				for form in formset:
+					print "\n\n"
+					print "FORM Data "
+					print(form.cleaned_data)
+			else:
+				print "it didn'st work"
+		else:
+			formset = QuestionsFormset(form_kwargs={'questionaire':lq_id})
+			print "nothing"
+		return render(request, 'dynaform/questionaire_v1.html', {'formset': formset})
+
+	except LegalQuestionaire.DoesNotExist:
+		raise Http404("LegalQuestionaire does not exist")	
+	return render(request, 'dynaform/questionaire_v1.html', {'formset': formset})
+
+
+
 def formset_view(request,lq_id):
+	#this creates formsets and posts it. This is a simple example.
 	try:
 		p = LegalQuestionaire.objects.get(pk=lq_id)
 		form = QuestionsForm(request.POST,questionaire=lq_id)
