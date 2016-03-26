@@ -5,7 +5,7 @@ from django.http import Http404
 from django.http import HttpResponseRedirect
 from django.forms.formsets import formset_factory
 from models import LegalQuestionaire,Questions,LegalTemplates
-from forms import QuestionsForm,LegalTemplatesUploadForm
+from forms import QuestionsForm,LegalTemplatesUploadForm, QuestionsFormNest
 
 # Create your views here.
 
@@ -19,16 +19,14 @@ def multi_formset_view(request,lq_id):
 	#a nested 
 	try:
 		p = LegalQuestionaire.objects.get(pk=lq_id)
-		form = QuestionsForm(request.POST,questionaire=lq_id)
-		QuestionsFormset = formset_factory(QuestionsForm)
+		form = QuestionsFormNest(request.POST,questionaire=lq_id)
+		QuestionsFormset = formset_factory(QuestionsFormNest)
 		print "\n\n\n\n\n"
 		print "POST QUERY DICT"
 		print request.POST
 		if request.method == 'POST':
 			formset = QuestionsFormset(request.POST,form_kwargs={'questionaire':lq_id})
-			
 			if formset.is_valid():
-				
 				print "\n\n\n\n\n"
 				print "FORMSET DATA"
 				print formset.cleaned_data

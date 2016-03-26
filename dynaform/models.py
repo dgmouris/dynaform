@@ -13,6 +13,16 @@ class LegalQuestionaire(models.Model):
 		return unicode(self.name)
 
 
+
+'''
+Field types to include
+ - text
+ - date
+ - number
+ - true/false
+ - multiple choice field.(this is going to need a separate table? for values)
+
+'''
 FIELD_TYPE_CHOICES=(
 	(0,'textfield'),
 	(1,'charfield'),
@@ -31,10 +41,6 @@ class Questions(models.Model):
 	def __unicode__(self):
 		return unicode(self.label)
 
-
-
-
-
 class LegalDocuments(models.Model):
 	docfile = models.FileField(upload_to='documents/')
 
@@ -42,10 +48,40 @@ class LegalTemplates(models.Model):
 	docfile = models.FileField(upload_to='docx-templates/')
 
 
+class FormLevelThree(models.Model):
+	#form_id = models.AutoField(primary_key=True,default=0)
+	label = models.CharField(max_length=255,default='')
+	#form_name = models.ForeignKey(LegalQuestionaire,blank=True,null=True)
+	#if_formset = models.BooleanField(default=False)
+
+class FormLevelTwo(models.Model):
+	form_id = models.AutoField(primary_key=True,default=0)
+	#label = models.CharField(max_length=255,default='')
+	form_name = models.ForeignKey(LegalQuestionaire,blank=True,null=True)
+	if_formset = models.BooleanField(default=False)
+	child = models.ForeignKey(FormLevelThree,blank=True,null=True)
+	def __unicode__(self):
+		return unicode(self.label)
+
+
+class FormLevelOne(models.Model):
+	form_id = models.AutoField(primary_key=True,default=0)
+	#label = models.CharField(max_length=255,default='')
+	form_name = models.ForeignKey(LegalQuestionaire,blank=True,null=True)
+	if_formset = models.BooleanField(default=False)
+	child = models.ForeignKey(FormLevelTwo,blank=True,null=True)
+	def __unicode__(self):
+		return unicode(self.label)
+
 class FormBaseLevel(models.Model):
-	name = models.ForeignKey(LegalQuestionaire)
-	if_formset = models.BooleanField()
-	
+	form_id = models.AutoField(primary_key=True,default=0)
+	#label = models.CharField(max_length=255,default='')
+	form_name = models.ForeignKey(LegalQuestionaire,blank=True,null=True)
+	if_formset = models.BooleanField(default=False)
+	child = models.ForeignKey(FormLevelOne,blank=True,null=True)
+	def __unicode__(self):
+		return unicode(self.label)
+
 '''
 create the 4 nest levels 
 legal questionaire as foreign key
