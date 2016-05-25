@@ -12,6 +12,7 @@ import json
 import datetime
 # Create your views here.
 from docxtpl import DocxTemplate
+
 from django.conf import settings
 
 
