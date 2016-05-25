@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 from django.db import models
+from django.utils.text import slugify
 
 # Create your models here.
 
@@ -27,11 +28,12 @@ FIELD_TYPE_CHOICES=(
 	(0,'textfield'),
 	(1,'charfield'),
 	(2,'boolean'),
-	(3,'file'),
+	(3,'integer'),
 	)
 
 class Questions(models.Model):
 	questionaire = models.ForeignKey(LegalQuestionaire)
+	question_name = models.CharField(max_length=255)
 	label = models.CharField(max_length=255)
 	field_type = models.IntegerField(choices = FIELD_TYPE_CHOICES)
 
@@ -45,42 +47,54 @@ class LegalDocuments(models.Model):
 	docfile = models.FileField(upload_to='documents/')
 
 class LegalTemplates(models.Model):
+	group = models.CharField(max_length=255,default='form_group')
+	slug = models.SlugField(default="abc",editable=False)	
 	docfile = models.FileField(upload_to='docx-templates/')
 
+	def __unicode__(self):
+		return unicode(self.group)
+
+	def save(self):
+		super(LegalTemplates, self).save()
+		self.slug = slugify(self.group)
+		super(LegalTemplates, self).save()
 
 class FormLevelThree(models.Model):
-	#form_id = models.AutoField(primary_key=True,default=0)
-	label = models.CharField(max_length=255,default='')
-	#form_name = models.ForeignKey(LegalQuestionaire,blank=True,null=True)
-	#if_formset = models.BooleanField(default=False)
-
+	form = models.ForeignKey(LegalQuestionaire,blank=True,null=True)
+	#form = models.ForeignKey(LegalQuestionaire,blank=True,null=True)
+	is_formset = models.BooleanField(default=True)
+	def __unicode__(self):
+		return unicode(self.form)
+		
 class FormLevelTwo(models.Model):
-	form_id = models.AutoField(primary_key=True,default=0)
-	#label = models.CharField(max_length=255,default='')
-	form_name = models.ForeignKey(LegalQuestionaire,blank=True,null=True)
-	if_formset = models.BooleanField(default=False)
+	form = models.ForeignKey(LegalQuestionaire,blank=True,null=True)
+	is_formset = models.BooleanField(default=True)
 	child = models.ForeignKey(FormLevelThree,blank=True,null=True)
 	def __unicode__(self):
-		return unicode(self.label)
+		return unicode(self.form)
 
 
 class FormLevelOne(models.Model):
-	form_id = models.AutoField(primary_key=True,default=0)
-	#label = models.CharField(max_length=255,default='')
-	form_name = models.ForeignKey(LegalQuestionaire,blank=True,null=True)
-	if_formset = models.BooleanField(default=False)
+	form = models.ForeignKey(LegalQuestionaire,blank=True,null=True)
+	is_formset = models.BooleanField(default=True)
 	child = models.ForeignKey(FormLevelTwo,blank=True,null=True)
 	def __unicode__(self):
-		return unicode(self.label)
+		return unicode(self.form)
 
 class FormBaseLevel(models.Model):
-	form_id = models.AutoField(primary_key=True,default=0)
-	#label = models.CharField(max_length=255,default='')
-	form_name = models.ForeignKey(LegalQuestionaire,blank=True,null=True)
-	if_formset = models.BooleanField(default=False)
+	group = models.CharField(max_length=255,default='form_group')
+	form = models.ForeignKey(LegalQuestionaire,blank=True,null=True)
+	is_formset = models.BooleanField(default=True)
 	child = models.ForeignKey(FormLevelOne,blank=True,null=True)
+	slug = models.SlugField(default="abc")
 	def __unicode__(self):
-		return unicode(self.label)
+		return unicode(self.form)
+
+	def save(self):
+		super(FormBaseLevel, self).save()
+		self.slug = slugify(self.group)
+		super(FormBaseLevel, self).save()
+		
 
 '''
 create the 4 nest levels 

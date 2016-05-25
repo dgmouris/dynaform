@@ -4,19 +4,28 @@
 {% block content %}
 	<script type="text/html" id="item-template">
 	<div id="item-__prefix__">
-	    {{ formset.empty_form }}	    
+		{% for formset in formsets %}
+				
+	    {{ formset.empty_form.as_p}}	    
+		    	
+		{% endfor %}
 	</div>
 	</script>
     <h5>Questionaire to create the document</h5>
 	<form id="form" method="post" action="">
         {% csrf_token %}
 	    <div id="items-form-container">
-	    	{{formset.management_form}}
-	        {% for form in formset %}
-				 <div class="form-item" id="item-{{ forloop.counter0 }}">
-				 {{ form.id }}
-				 {{ form.as_table }}
-		        </div>
+	    	
+	    	{% for formset in formsets %}
+				
+		    	{{formset.management_form}}
+		        
+		        {% for form in formset %}
+					 <div class="form-item" id="item-{{ forloop.counter0 }}">
+					 {{ form.id }}
+					 {{ form.as_table }}
+			        </div>
+			    {% endfor %}
 		    {% endfor %}
 		</div>
 		<a href="#" id="add-item-button" class="btn btn-info add-item">Add Item</a>		
@@ -49,4 +58,3 @@ $( document ).ready(function() {
 
 
 {%endblock%}
-    

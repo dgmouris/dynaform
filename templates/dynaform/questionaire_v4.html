@@ -1,0 +1,473 @@
+{%extends 'base.html'%}
+{% load staticfiles %}
+
+{% block extra_css %}
+<style type="text/css">
+#empty_formsets{
+	display:none;
+}
+.form{
+	outline: #00FF00;
+}
+.child-level-1{
+	padding-left: 20px;
+	outline: #00FF00;
+}
+.child-level-2{
+	padding-left: 20px;
+	outline: #00FF00;
+}
+.child-level-3{
+	padding-left: 20px;
+	outline: #00FF00;
+}
+
+</style>
+{% endblock%}
+
+
+
+{% block content %}
+	<script type="text/html" id="item-template">
+		
+
+	</script>
+    <h5>Questionaire to create the document</h5>
+	<form id="form" method="post" action="">
+        {% csrf_token %}
+	    <div id="items-form-container">
+	    	{%for formset in formsets%}
+	    	{{formset.data.management_form}}
+	    	{%endfor%}
+	    	
+	    	{% for formset in formsets %}
+			<!-- parent {{formset.parent}}-->
+			<!-- level {{formset.level}}-->
+			<!-- child {{formset.child}}-->
+			
+
+
+					{# This will begin the formset template language#}							 
+					<div class="form formname-{{formset.name}} form-manager {%if formset.level > 0%} child child-level-{{formset.level}} {%endif%}" id="{{formset.name}}-0" >
+				    	
+
+				    	{#{{formset.data.management_form}}#}
+				        {% for form in formset.data %}
+						<div class="form-item formset-{{formset.name}} form-manager" id="item-{{ forloop.counter0 }}">				
+							{# Include the hidden fields #}
+							{% for hidden in form.hidden_fields %}
+								{{ hidden }}
+							{% endfor %}
+		
+							 {# Include the visible fields #}
+							 {% for field in form.visible_fields %}
+							    <div class="fieldWrapper">
+							        {{ field.errors }}
+							        {{ field.label_tag }} {{ field }}
+							        {% if field.help_text %}
+							        <p class="help">{{ field.help_text|safe }}</p>
+							        {% endif %}
+							    </div>	
+				
+							{% endfor %}
+						{#<a href="#" id="add-item-button button-item-{{ forloop.counter0 }}" class="btn btn-info check-current"> Current Class </a>	<br/>	#}
+				
+				        </div>
+					    {% endfor %}
+						{%if formset.is_formset%}
+						<a href="#" id="add-item-button" class="btn btn-info add-item">Add Item</a>	<br/>
+						{%endif%}
+						<!--<a href="#" id="add-item-button" class="btn btn-info check-current"> Current Class </a>	<br/>	-->
+						
+						{%if formset.level > 0%}
+						{#<a href="#" id="" class="btn btn-info get-parent"> Parent Class</a>#}
+						{%endif%}
+				{# this does logic to see if the formset needs to be closed#}
+				{%if formset.child != "None" %}
+					{# no action required, keep the div open#}
+				{%else%}
+					{# close all of the divs preceding thiss #}
+				    {% for i in "012345"%}
+						{#<!-- closed {{forloop.counter0}} <{{formset.level}} times-->#}
+						{%if forloop.counter0 <= formset.level%}
+						</div>	
+						{%endif%}
+					{%endfor%}
+		
+				{%endif%}
+
+
+		    {% endfor %}
+		</div>
+
+
+	    <input type="submit" value="Submit and Create Doc">
+	</form>
+
+
+
+
+
+	<div id="empty_formsets">
+		{% for formset in formsets %}
+		
+
+			{% with formset.data.empty_form as form %}
+	      
+				{# do a check if we have come back to the top level or a previous level #}
+
+				<div class="form formname-{{formset.name}} form-manager {%if formset.level > 0%} child child-level-{{formset.level}} {%endif%}" id="{{formset.name}}-__form_prefix__" >
+				    
+		        {% for field in form.visible_fields %}
+				    <div class="form-item formset-{{formset.name}} form-manager" id="item-__prefix__">
+
+						{% for hidden in form.hidden_fields %}
+							{{ hidden }}
+						{% endfor %}
+						{% for field in form.visible_fields %}
+							 
+					    <div class="fieldWrapper">
+					        {{ field.errors }}
+					        {{ field.label_tag }} {{ field }}
+					        {% if field.help_text %}
+					        <p class="help">{{ field.help_text|safe }}</p>
+					        {% endif %}
+					    </div>
+					    {%endfor %} 
+						{#<a href="#" id="add-item-button" class="btn btn-info check-current"> Current Class </a>	<br/>	#}
+					</div>
+				{% endfor %}
+
+				{%if formset.is_formset%}
+				<a href="#" id="add-item-button button-item-__prefix__" class="btn btn-info add-item">Add Item</a>	<br/>
+				{%endif%}
+				<!--<a href="#" id="add-item-button" class="btn btn-info check-current"> Current Class </a>	<br/>	-->
+				
+
+				{# this does logic to see if the formset needs to be closed#}
+				{%if formset.child != "None" %}
+					<!-- keeping the child nested-->
+				{%else%}
+					{# close all of the divs preceding thiss #}
+				    {% for i in "012345"%}
+						{#<!-- closed {{forloop.counter0}} <{{formset.level}} times-->#}
+						{%if forloop.counter0 <= formset.level%}
+						</div>	
+						{%endif%}
+					{%endfor%}
+		
+				{%endif%}
+
+
+	        {% endwith %}
+
+        {%endfor%}
+    </div>
+
+
+{% endblock %}
+
+
+{%block javascript%}
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+<script href="{% static "js/underscore.js" %}"></script>
+<script >
+$( document ).ready(function() {
+	jQuery.fn.outerHTML = function(s) {
+    return s
+        ? this.before(s).remove()
+        : jQuery("<p>").append(this.eq(0).clone()).html();
+	};
+    
+    //$('.add-item').click(function(ev) {
+    $('form').on('click','.add-item',function(ev){ 
+        //console.log("Clicked!")
+        ev.preventDefault();
+        //get the current form
+        form = get_form(this)
+        
+        //complete form updated as well as the html is 
+        compiled_form = update_form(form)
+    
+    })
+	
+	//this updates 	the complete form.
+	function update_form(form){
+		//get the form name and the form id
+		form_id = get_form_id(form) 
+		form_name =get_form_name(form)
+
+        //this gets the form size based on 
+
+        //var count = $("form").children(selector).size();
+        var count = $(form_id).children(".form-item ").size();
+        //console.log("count = "+ count)
+        empty_form_id = "#"+form_name+"-__form_prefix__"
+        //console.log("form id")
+        //console.log(empty_form_id)
+
+        var tmplMarkup = $('#empty_formsets').find(empty_form_id).children(".form-item").parent();
+        //console.log("object to string")
+        
+        complete_string = $('#empty_formsets').find(empty_form_id).children(".form-item").parent().html()
+        //console.log("form string")
+        //console.log(complete_string)
+
+        //replace for the base
+		compiled_form = replace_prefix_in_form(form ,complete_string);
+
+        //check for children to add the templates
+        if( $(form_id).has(".child").length ){
+			//console.log("has a child");
+
+			//replace for the second level.
+			var current_form = $(form_id).find(".child")
+			compiled_form = replace_prefix_in_form(current_form,compiled_form);
+
+			if($(current_form).has(".child").length){
+				
+				//console.log($(current_form).find(".child").attr('id'))
+				//replace for the third level
+				current_form = $(current_form).find(".child")
+				compiled_form = replace_prefix_in_form(current_form,compiled_form);
+				
+				if($(current_form).has(".child").length){
+					//replace for the fourth level
+					current_form = $(current_form).find(".child")
+					compiled_form = replace_prefix_in_form(current_form,compiled_form);
+					
+				}
+
+			}
+
+        }
+
+        //get the form id for all of the form
+		form_id = get_form_id(form)
+        //compiled the complete form 
+		//parent_form=get_form_parent(form)
+		//parent_form_id=get_form_id(parent_form)
+		$(form_id).append(compiled_form);
+		//adding a total form
+		$('#id_'+form_name+'-TOTAL_FORMS').attr('value', count+1);
+		form = update_form_management_data(form);
+
+    	return form
+	}
+
+
+	//this will update all of the data within the form
+	function update_form_management_data(form){
+		//console.log("update_form_management_data")
+		//select only the real forms and not the empty forms
+		real_forms = $('#items-form-container');
+
+		//loop through the real forms (to update the )
+		real_forms.find('.form').each(function(){
+		
+	        //form_name = $(this).attr('id');
+	    	//form_id = "#"+ $(this).attr('id');
+			        
+			form_id = get_form_id(this) 
+			form_name =get_form_name(this)
+			//console.log("current form "+form_id);
+	        
+	        //console.log("current form "+form_name);
+
+	        var count = $(form_id).children(".form-item ").size() -1;
+
+	        //console.log("items for this form")
+	        //loop through all the items values
+			$(this).children(".form-item").each(function(){
+				//shows the item number (you need to remove item from it.)
+				var item_form_id = $(this).attr('id').replace('item-','');
+				//get the form element prefix.
+				var element_prefix = "#id_"+form_name+"-"+item_form_id+"-";
+				//set the form id
+				$(this).children(element_prefix+"form_id").val(item_form_id);
+				var parent_form_name = $(this).children(element_prefix+"parent_name").val();
+				
+				
+				$(this).closest(".form").prevAll('.form-item').attr('class')
+				if(parent_form_name!="None"){
+					parent_form=get_form_parent(form)
+					//parent_form_id=get_form_id(parent_form)
+					//parent_form_name = get_form_name(parent_form)
+					//var parent_form_id = $(this).closest('.form').prevAll('.form-manager').attr('id').replace('item-','');
+					var parent_form_id = $(this).closest('.form').prevAll('.form-item').attr('id')
+					//check if there is item in the name and if so 
+					
+					if (parent_form_id != undefined){
+
+						if (parent_form_id.indexOf("item-") >= 0){
+							parent_form_id = parent_form_id.replace('item-','')
+						}
+						
+						var parent_form_name = $(this).children(element_prefix+"parent_id").val(parent_form_id);
+					
+					}
+
+
+				}
+			})
+		});
+
+		return form;
+	}
+
+
+
+
+
+
+	//replace the complete from string 
+	//note this does add size so a todo would be to remove the total forms
+	function replace_prefix_in_form(form,complete_form_string){
+        //regex strings and replace  
+    	//form_id = "#"+ $(form).attr('id');
+        form_id = get_form_id(form) 
+        form_name =get_form_name(form)
+        
+        //this gets the form size based on the form items of the form
+        var selector = ".form-item.formset-"+form_name
+        var count = $("form").find(selector).size();
+        console.log("selector and count")
+        console.log(selector)
+        console.log(count)
+        
+        //this creates the form
+        var regex_string = ""+form_name+"-__prefix__-";
+		var replace_string = form_name+"-"+count+'-';    
+        //console.log("regex string: " + regex_string);
+        //compiling the regex to replace prefix with iterators. 
+        var regex = new RegExp(regex_string,"g")
+        var complete_form_string = complete_form_string.replace(regex, replace_string);
+
+        //form set the form id
+        var form_item_id = "#id_"+form_name+"-"+count+"-form_id"
+        console.log("form item id")
+        console.log(form_item_id)
+		$(form_item_id).val(count)
+        //need to replace all of the rest of the __prefix__ after all of the ids are done.
+        /*
+        var regex_string =  "__prefix__";
+    	var replace_string = count;
+	    var regex = new RegExp(regex_string,"g");
+        var complete_form_string = complete_form_string.replace(regex, replace_string);
+        */
+
+        //need to change all of the form prefixes with a unique id.
+        
+        var regex_string = "__form_prefix__";
+        var replace_string = String(unique_id());
+		var regex = new RegExp(regex_string,"g");
+        var complete_form_string = complete_form_string.replace(regex, replace_string);
+
+        /*
+		make this recursive!
+
+		check for children 
+
+		just do the prefix in the form again this should solve the problem
+
+
+		*/
+		
+
+    	//update the "internal" management data
+        //this updates the form id.
+        //$('#id_'+form_name+'-'+count+'-form_id').attr('value', count);  
+
+	
+		
+        //adding a total form
+		$('#id_'+form_name+'-TOTAL_FORMS').attr('value', count+1);  
+        
+		return complete_form_string;
+	}
+
+	//a function to create a unique id for the ids.
+	function unique_id() {
+		return Math.round(new Date().getTime() + (Math.random() * 100));
+	}
+
+
+    //this gets the current form
+   	//$('.check-current').click(function(ev){
+	$('form').on('click','.check-current',function(ev){ 
+		ev.preventDefault();
+		form_id = get_form_id(this)
+		form_name = get_form_name(this)
+	})
+    //this gets the parent form this needs to be separated in a different form
+   
+	
+	$('.get-parent').click(function(ev){
+    	ev.preventDefault();
+    	form = get_form_parent(this);
+    })
+
+	//gets the current form of any call
+	function get_form(current_form){
+    	var form= $(current_form).closest(".form")
+    	
+    	return form
+    }
+
+    //gets the form id of the current form
+	function get_form_id(current_form){
+    	var form= $(current_form).closest(".form")
+    	var form_id = "#"+ $(form).attr('id')
+
+    	return form_id
+    }
+
+    //gets the form name based on the class formname-<formset-name>
+    function get_form_name(current_form){    	
+    	var form= $(current_form).closest(".form")
+    	var form_name_dirty= $(form).attr('class').split(/\s+/)[1];
+    	var regex_string =  "formname-"
+    	var regex = new RegExp(regex_string,"g")
+	    var form_name = form_name_dirty.replace(regex, "");
+    	//console.log("this is the current form name: " + form_name)
+    	return form_name
+    }
+
+    //gets the form parent if there are any.
+	function get_form_parent(current_form){
+    	//console.log("get_form_parent")
+    	var form= $(current_form).parent(".form").attr('id');
+    	//var parents = $(this).parents();
+    	var parent = $("#"+form).parent(".form")
+
+		return parent
+    }
+
+
+    function get_form_parent_item(current_form){
+    	//console.log("get_form_parent")
+    	var form= $(current_form).parent(".form").attr('id');
+    	//var parents = $(this).parents();
+    	var parent = $("#"+form).parent(".form")
+    	var item = $(parent).children(".form-item")
+    	//.attr('id');
+
+		return parent;
+    }
+
+
+
+
+    function get_form_values(form,value_name){
+    	values= $(form).children(".form-item").children()
+    }
+
+
+
+
+});
+</script>
+
+
+{%endblock%}

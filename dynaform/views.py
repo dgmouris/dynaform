@@ -5,18 +5,698 @@ from django.http import Http404
 from django.http import HttpResponseRedirect
 from django.forms.formsets import formset_factory
 from models import LegalQuestionaire,Questions,LegalTemplates
+from models import FormBaseLevel, FormLevelOne, FormLevelTwo,FormLevelThree
+from models import LegalTemplates
 from forms import QuestionsForm,LegalTemplatesUploadForm, QuestionsFormNest
-
+import json
+import datetime
 # Create your views here.
+from docxtpl import DocxTemplate
+from django.conf import settings
+
+
 
 class HomeView(ListView):
 	template_name = 'base.html'
 	queryset = LegalQuestionaire.objects.all()
 
+def form_to_docx(request,slug):
+
+	#an attempt at nested formsets
+
+	formset_list =[]
+	try:
+		#create the base formset that everything is based off of.
+		QuestionsFormset = formset_factory(QuestionsFormNest)
+
+		#get the questionaire list from the group
+		questionaire_list = FormBaseLevel.objects.filter(slug=slug)
+
+		#get the template
+		template_file = LegalTemplates.objects.filter(slug=slug)
+
+		
+		formset_list =[]
+		formset_dict = {}
+		#create the formsets to access the cleaned data
+		if request.method=='POST':
+			
+			for questionaire in questionaire_list:
+				formset_dict['name'] = questionaire.form.name
+				formset_dict['data'] = QuestionsFormset(request.POST,form_kwargs={'questionaire':questionaire.form.id,'is_formset':questionaire.is_formset},prefix=questionaire.form.name)  
+				formset_dict['parent'] = "None"
+				formset_dict['is_formset'] = questionaire.is_formset
+				if questionaire.child is not None:
+					formset_dict['child'] = str(questionaire.child.form.name)
+				else:
+					formset_dict['child'] = str(None)
+				
+				formset_dict['level'] = 0
+				
+				formset_list.append(formset_dict.copy())
+				#set the parent for the child
+				parent = questionaire.form.name
+				if questionaire.child is not None:
+					
+					formset_dict['name'] = questionaire.child.form.name
+					formset_dict['data'] = QuestionsFormset(request.POST,form_kwargs={'questionaire':questionaire.child.form.id,'parent':parent,'is_formset':questionaire.child.is_formset},prefix=questionaire.child.form.name)
+					formset_dict['parent'] = parent 
+
+					formset_dict['is_formset'] = questionaire.child.is_formset
+					if questionaire.child.child is not None:
+						formset_dict['child'] = str(questionaire.child.child.form.name)
+					else:
+						formset_dict['child'] = str(None)
+					formset_dict['level'] = 1
+
+					parent = questionaire.child.form.name
+					formset_list.append(formset_dict.copy())
+						
+					#this is the child of the child.
+					if questionaire.child.child is not None:
+					
+						formset_dict['name'] = questionaire.child.child.form.name
+						formset_dict['data'] = QuestionsFormset(request.POST,form_kwargs={'questionaire':questionaire.child.child.form.id,'parent':parent,'is_formset':questionaire.child.child.is_formset},prefix=questionaire.child.child.form.name) 
+						formset_dict['parent'] = parent
+						formset_dict['is_formset'] = questionaire.child.child.is_formset
+					
+						if questionaire.child.child.child is not None:
+							formset_dict['child'] = str(questionaire.child.child.child.form.name)
+						else:
+							formset_dict['child'] = str(None)
+						
+						formset_dict['level'] = 2
+							
+						#set for the next level down.
+						parent = questionaire.child.child.form.name
+						level = formset_dict['level']
+
+						formset_list.append(formset_dict.copy())			
+						#this is the child of the child.
+						if questionaire.child.child.child is not None:
+						
+							formset_dict['name'] = questionaire.child.child.child.form.name
+							formset_dict['data'] = QuestionsFormset(request.POST,form_kwargs={'questionaire':questionaire.child.child.child.form.id,'parent':parent,'is_formset':questionaire.child.child.child.is_formset},prefix=questionaire.child.child.child.form.name) 
+							formset_dict['parent'] = parent
+							formset_dict['is_formset'] = questionaire.child.child.child.is_formset
+					
+							if questionaire.child.child.child is not None:
+								formset_dict['child'] = str(questionaire.child.child.child.form.name)
+							else:
+								formset_dict['child'] = str(None)
+							
+							formset_dict['level'] = 3
+								
+							#set for the next level down.
+							parent = questionaire.child.child.child.form.name
+							level = formset_dict['level']
+
+							formset_list.append(formset_dict.copy())			
+					
+			#print the clean data to a dict
+			cleaned_data = []				
+			if_errors = False
+			print json.dumps(formset_list[0]['data'].data,sort_keys=True, indent=4)
+			for formset in formset_list:
+				print "check for formset" +str(formset['name'])
+				
+				#print json.dumps(formset['data'].data,sort_keys=True, indent=4)
+				if formset['data'].is_valid():
+					
+					cleaned_data = cleaned_data + formset['data'].cleaned_data
+
+				else:
+					print formset['data'].errors
+					if_errors = True
+			
+			#print "thisis the cleaned data"
+			#print the cleaned data out
+			#print json.dumps(cleaned_data,sort_keys=True, indent=4)
+			
 
 
-def multi_formset_view(request,lq_id):
-	#a nested 
+
+			if if_errors ==False:		
+				#This can be done in another function
+				i = 0
+				length = len(cleaned_data)
+				while i<length:
+					data = cleaned_data[i]
+					#print data['parent_name']
+					print data['form_name']+ "  is this a formset ?" + data['is_formset']
+							
+					if data['parent_name']!="None":
+						for append_data in cleaned_data:
+							
+							if data['parent_name'] == append_data['form_name'] and data['parent_id'] == append_data['form_id']:
+								#print "match!"
+								#print data['form_name']
+								#check if it's a formset				
+								append_data['child'] =data['form_name']
+								if data['is_formset'] =="True":
+									if data['form_name'] not in append_data:
+										append_data[data['form_name']] = [] 
+									append_data[data['form_name']].append(data)
+								else:
+									append_data[data['form_name']] = data
+								
+								#append_data[data['form_name']] = data
+								del cleaned_data[i]
+								break
+								
+							elif 'child' in append_data:
+								child1 = append_data['child']
+								if isinstance(append_data[child1],list):
+									print child1 + " is a list"
+									
+									for child_data in append_data[child1]:
+
+										if data['parent_name'] == child_data['form_name'] and data['parent_id'] == child_data['form_id']:
+											#print "match!"
+											#print data['form_name']
+											#check if it's a formset				
+											child_data['child'] =data['form_name']
+											if data['is_formset'] =="True":
+												if data['form_name'] not in child_data:
+													child_data[data['form_name']] = [] 
+												child_data[data['form_name']].append(data)
+											else:
+												child_data[data['form_name']] = data
+											
+											del cleaned_data[i]
+											break
+										elif 'child' in child_data:
+											child2 = child_data['child']
+											if isinstance(child_data[child2],list):
+												print child2 + " is a list"
+												for child_data_1 in child_data[child2]:
+												
+													if data['parent_name'] == child_data_1['form_name'] and data['parent_id'] == child_data_1['form_id']:
+														
+														child_data_1['child'] =data['form_name']
+														if data['is_formset'] =="True":
+															if data['form_name'] not in child_data_1:
+																child_data_1[data['form_name']] = [] 
+															child_data_1[data['form_name']].append(data)
+														else:
+															child_data_1[data['form_name']] = data
+														
+														del cleaned_data[i]
+														break
+													
+											elif isinstance(child_data[child2],dict):
+												if data['parent_name'] == append_data[child1]['form_name'] and data['parent_id'] == append_data[child1]['form_id']:
+													#print "match!" + child1
+													child_data[child2][data['form_name']] = data	
+													child_data[child2]['child'] = data['form_name']
+													
+													del cleaned_data[i]
+													break	
+
+								elif isinstance(append_data[child1],dict):
+									print child1 +" is a dict"
+
+									if data['parent_name'] == append_data[child1]['form_name'] and data['parent_id'] == append_data[child1]['form_id']:
+										#print "match!" + child1
+										append_data[child1][data['form_name']] = data	
+										append_data[child1]['child'] = data['form_name']
+										if data['is_formset'] =="True":
+											if data['form_name'] not in append_data[child1]:
+												append_data[child1][data['form_name']] = [] 
+											append_data[child1][data['form_name']].append(data)
+										else:
+											append_data[child1][data['form_name']] = data
+											
+										del cleaned_data[i]
+										break
+									
+
+
+									'''
+									elif 'child' in append_data[child1]:
+										child2 = append_data[child1]['child']
+										#print "match!" + child1 +" "+  child2
+										
+										if data['parent_name'] == append_data[child1][child2]['form_name'] and data['parent_id'] == append_data[child1][child2]['form_id']:
+											#print "match!"
+											append_data[child1][child2][data['form_name']] = data
+											append_data[child1][child2]['child'] = data['form_name']
+											del cleaned_data[i]
+											break
+										
+										elif 'child' in append_data[child1][child2]['child']:
+											child3 = append_data[child1][child2]['child']
+											
+											if data['parent_name'] == append_data[child1][child2][child3]['form_name'] and data['parent_id'] == append_data[child1][child2][child3]['form_id']:
+												#print "match!"
+												append_data[child1][child2][child3][data['form_name']] = data
+												del cleaned_data[i]
+												break									
+											
+										break
+									'''	
+						length = length - 1
+					else:
+						i = i + 1
+				
+
+				'''
+				while i<length:
+					data = cleaned_data[i]
+					print data['parent_name']
+					if data['parent_name']!="None":
+						for append_data in cleaned_data:
+							print data['is_formset']
+							if data['parent_name'] == append_data['form_name'] and data['parent_id'] == append_data['form_id']:
+								#print "match!"
+								print data['form_name']				
+								append_data[data['form_name']] = data
+								append_data['child'] =data['form_name']
+								
+								del cleaned_data[i]
+								break
+								
+							elif 'child' in append_data:
+								child1 = append_data['child']
+								
+								if data['parent_name'] == append_data[child1]['form_name'] and data['parent_id'] == append_data[child1]['form_id']:
+									#print "match!" + child1
+									append_data[child1][data['form_name']] = data	
+									append_data[child1]['child'] = data['form_name']
+									
+									del cleaned_data[i]
+								elif 'child' in append_data[child1]:
+									child2 = append_data[child1]['child']
+									#print "match!" + child1 +" "+  child2
+									
+									if data['parent_name'] == append_data[child1][child2]['form_name'] and data['parent_id'] == append_data[child1][child2]['form_id']:
+										#print "match!"
+										append_data[child1][child2][data['form_name']] = data
+										append_data[child1][child2]['child'] = data['form_name']
+										del cleaned_data[i]
+										break
+									
+									elif 'child' in append_data[child1][child2]['child']:
+										child3 = append_data[child1][child2]['child']
+										
+										if data['parent_name'] == append_data[child1][child2][child3]['form_name'] and data['parent_id'] == append_data[child1][child2][child3]['form_id']:
+											#print "match!"
+											append_data[child1][child2][child3][data['form_name']] = data
+											del cleaned_data[i]
+											break									
+										
+									break
+						length = length - 1
+					else:
+						i = i + 1
+				'''
+				#create the new file
+				
+				#f = open('/path/to/file')
+				#self.license_file.save(new_name, File(f))
+				
+				#this actually works do keep this
+				print cleaned_data[0]
+				print 'MEDIA ROOT'
+				print settings.MEDIA_ROOT 
+				print 'Templates'
+				file_name = settings.MEDIA_ROOT+'/'+str(template_file[0].docfile)
+				template = DocxTemplate(file_name)
+				template.render(cleaned_data[0])
+				end_file = settings.MEDIA_ROOT+'/daneltest-'+ str( datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p"))+'.docx'
+				template.save(end_file)
+						
+			#print the cleaned data out
+			print json.dumps(cleaned_data,sort_keys=True, indent=4)
+			
+		else:
+			#set the current level for the template so that wen you nest you can compare them
+			level = 0
+
+			#loop through the form list and add the info to render the nested templates
+			for questionaire in questionaire_list:
+				formset_dict['name'] = questionaire.form.name
+				formset_dict['data'] = QuestionsFormset(form_kwargs={'questionaire':questionaire.form.id,'is_formset':questionaire.is_formset},prefix=questionaire.form.name)
+				formset_dict['parent'] = "None"
+				formset_dict['is_formset'] = questionaire.is_formset
+					
+				if questionaire.child is not None:
+					formset_dict['child'] = str(questionaire.child.form.name)
+				else:
+					formset_dict['child'] = str(None)
+				#set the level so that you can you can compare
+				formset_dict['level'] = 0
+				formset_dict['prev_level'] = level
+				formset_list.append(formset_dict.copy())
+				#set the parent and the 
+				parent = questionaire.form.name
+				level = formset_dict['level']
+				print formset_dict
+
+				if questionaire.child is not None:
+					
+					formset_dict['name'] = questionaire.child.form.name
+					formset_dict['data'] = QuestionsFormset(form_kwargs={'questionaire':questionaire.child.form.id,'parent':parent,'is_formset':questionaire.child.is_formset},prefix=questionaire.child.form.name) 
+					formset_dict['parent'] = parent
+					formset_dict['is_formset'] = questionaire.child.is_formset
+					
+					if questionaire.child.child is not None:
+						formset_dict['child'] = str(questionaire.child.child.form.name)
+					else:
+						formset_dict['child'] = str(None)
+					
+					formset_dict['level'] = 1
+					formset_dict['prev_level'] = 0
+						
+					#set for the next level down.
+					parent = questionaire.child.form.name
+					#level = formset_dict['level']
+					print formset_dict
+
+					formset_list.append(formset_dict.copy())			
+
+
+					#this is the child of the child.
+					if questionaire.child.child is not None:
+					
+						formset_dict['name'] = questionaire.child.child.form.name
+						formset_dict['data'] = QuestionsFormset(form_kwargs={'questionaire':questionaire.child.child.form.id,'parent':parent,'is_formset':questionaire.child.child.is_formset},prefix=questionaire.child.child.form.name) 
+						formset_dict['parent'] = parent
+						formset_dict['is_formset'] = questionaire.child.child.is_formset
+					
+						if questionaire.child.child.child is not None:
+							formset_dict['child'] = str(questionaire.child.child.child.form.name)
+						else:
+							formset_dict['child'] = str(None)
+						
+						formset_dict['level'] = 2
+						formset_dict['prev_level'] = 1
+										
+						#set for the next level down.
+						parent = questionaire.child.child.form.name
+						level = formset_dict['level']
+						print formset_dict
+						formset_list.append(formset_dict.copy())
+						
+						#this is the child of the child.
+						if questionaire.child.child.child is not None:
+						
+							formset_dict['name'] = questionaire.child.child.child.form.name
+							formset_dict['data'] = QuestionsFormset(form_kwargs={'questionaire':questionaire.child.child.child.form.id,'parent':parent,'is_formset':questionaire.child.child.child.is_formset},prefix=questionaire.child.child.child.form.name) 
+							formset_dict['parent'] = parent
+							formset_dict['is_formset'] = questionaire.child.child.child.is_formset
+					
+							'''
+							if questionaire.child.child.child is not None:
+								formset_dict['child'] = str(questionaire.child.child.child.form.name)
+							else:
+								formset_dict['child'] = str(None)
+							'''
+							#this is the last level of nesting that needs to be done.
+							formset_dict['child'] = str(None)
+							formset_dict['prev_level'] = 2
+						
+							formset_dict['level'] = 3
+								
+							#set for the next level down.
+							parent = questionaire.child.child.child.form.name
+							level = formset_dict['level']
+							print formset_dict
+
+							formset_list.append(formset_dict.copy())
+
+		return render(request, 'dynaform/questionaire_v4.html', {'formsets': formset_list})
+
+	except LegalQuestionaire.DoesNotExist:
+		raise Http404("LegalQuestionaire does not exist")	
+	return render(request, 'dynaform/questionaire_v4.html', {'formsets': formset_list})
+
+
+
+def multi_formset_view(request,slug):
+
+	#an attempt at nested formsets
+
+	formset_list =[]
+	try:
+		#create the base formset that everything is based off of.
+		QuestionsFormset = formset_factory(QuestionsFormNest)
+
+		#get the questionaire list from the group
+		questionaire_list = FormBaseLevel.objects.filter(slug=slug)
+
+		
+		formset_list =[]
+		formset_dict = {}
+		#create the formsets to access the cleaned data
+		if request.method=='POST':
+			
+			for questionaire in questionaire_list:
+				formset_dict['name'] = questionaire.form.name
+				formset_dict['data'] = QuestionsFormset(request.POST,form_kwargs={'questionaire':questionaire.form.id,'is_formset':questionaire.is_formset},prefix=questionaire.form.name)  
+				formset_dict['parent'] = "None"
+				formset_dict['is_formset'] = questionaire.is_formset
+				if questionaire.child is not None:
+					formset_dict['child'] = str(questionaire.child.form.name)
+				else:
+					formset_dict['child'] = str(None)
+				
+				formset_dict['level'] = 0
+				
+				formset_list.append(formset_dict.copy())
+				#set the parent for the child
+				parent = questionaire.form.name
+				if questionaire.child is not None:
+					
+					formset_dict['name'] = questionaire.child.form.name
+					formset_dict['data'] = QuestionsFormset(request.POST,form_kwargs={'questionaire':questionaire.child.form.id,'parent':parent,'is_formset':questionaire.child.is_formset},prefix=questionaire.child.form.name)
+					formset_dict['parent'] = parent 
+
+					formset_dict['is_formset'] = questionaire.child.is_formset
+					if questionaire.child.child is not None:
+						formset_dict['child'] = str(questionaire.child.child.form.name)
+					else:
+						formset_dict['child'] = str(None)
+					formset_dict['level'] = 1
+
+					parent = questionaire.child.form.name
+					formset_list.append(formset_dict.copy())
+						
+					#this is the child of the child.
+					if questionaire.child.child is not None:
+					
+						formset_dict['name'] = questionaire.child.child.form.name
+						formset_dict['data'] = QuestionsFormset(request.POST,form_kwargs={'questionaire':questionaire.child.child.form.id,'parent':parent,'is_formset':questionaire.child.child.is_formset},prefix=questionaire.child.child.form.name) 
+						formset_dict['parent'] = parent
+						formset_dict['is_formset'] = questionaire.child.child.is_formset
+					
+						if questionaire.child.child.child is not None:
+							formset_dict['child'] = str(questionaire.child.child.child.form.name)
+						else:
+							formset_dict['child'] = str(None)
+						
+						formset_dict['level'] = 2
+							
+						#set for the next level down.
+						parent = questionaire.child.child.form.name
+						level = formset_dict['level']
+
+						formset_list.append(formset_dict.copy())			
+						#this is the child of the child.
+						if questionaire.child.child.child is not None:
+						
+							formset_dict['name'] = questionaire.child.child.child.form.name
+							formset_dict['data'] = QuestionsFormset(request.POST,form_kwargs={'questionaire':questionaire.child.child.child.form.id,'parent':parent,'is_formset':questionaire.child.child.child.is_formset},prefix=questionaire.child.child.child.form.name) 
+							formset_dict['parent'] = parent
+							formset_dict['is_formset'] = questionaire.child.child.child.is_formset
+					
+							if questionaire.child.child.child is not None:
+								formset_dict['child'] = str(questionaire.child.child.child.form.name)
+							else:
+								formset_dict['child'] = str(None)
+							
+							formset_dict['level'] = 3
+								
+							#set for the next level down.
+							parent = questionaire.child.child.child.form.name
+							level = formset_dict['level']
+
+							formset_list.append(formset_dict.copy())			
+					
+			#print the clean data to a dict
+			cleaned_data = []				
+			for formset in formset_list:
+				print "check for formset" +str(formset['name'])
+				if formset['data'].is_valid():
+					
+					cleaned_data = cleaned_data + formset['data'].cleaned_data
+				else:
+					print formset['data'].errors
+					
+			print "\n\n\n"
+			print "bring back together"	
+			#This can be done in another function
+			i = 0
+			length = len(cleaned_data)
+			while i<length:
+				data = cleaned_data[i]
+				print data['parent_name']
+				if data['parent_name']!="None":
+					for append_data in cleaned_data:
+						
+						if data['parent_name'] == append_data['form_name'] and data['parent_id'] == append_data['form_id']:
+							#print "match!"
+							print data['form_name']				
+							append_data[data['form_name']] = data
+							append_data['child'] =data['form_name']
+							
+							del cleaned_data[i]
+							break
+							
+						elif 'child' in append_data:
+							child1 = append_data['child']
+							
+							if data['parent_name'] == append_data[child1]['form_name'] and data['parent_id'] == append_data[child1]['form_id']:
+								#print "match!" + child1
+								append_data[child1][data['form_name']] = data	
+								append_data[child1]['child'] = data['form_name']
+								
+								del cleaned_data[i]
+							elif 'child' in append_data[child1]:
+								child2 = append_data[child1]['child']
+								#print "match!" + child1 +" "+  child2
+								
+								if data['parent_name'] == append_data[child1][child2]['form_name'] and data['parent_id'] == append_data[child1][child2]['form_id']:
+									#print "match!"
+									append_data[child1][child2][data['form_name']] = data
+									append_data[child1][child2]['child'] = data['form_name']
+									del cleaned_data[i]
+									break
+								
+								elif 'child' in append_data[child1][child2]['child']:
+									child3 = append_data[child1][child2]['child']
+									
+									if data['parent_name'] == append_data[child1][child2][child3]['form_name'] and data['parent_id'] == append_data[child1][child2][child3]['form_id']:
+										#print "match!"
+										append_data[child1][child2][child3][data['form_name']] = data
+										del cleaned_data[i]
+										break									
+									
+								break
+					length = length - 1
+				else:
+					i = i + 1
+
+			
+
+
+			#print the cleaned data out
+			print json.dumps(cleaned_data,sort_keys=True, indent=4)
+			
+		else:
+			#set the current level for the template so that wen you nest you can compare them
+			level = 0
+
+			#loop through the form list and add the info to render the nested templates
+			for questionaire in questionaire_list:
+				formset_dict['name'] = questionaire.form.name
+				formset_dict['data'] = QuestionsFormset(form_kwargs={'questionaire':questionaire.form.id,'is_formset':questionaire.is_formset},prefix=questionaire.form.name)
+				formset_dict['parent'] = "None"
+				formset_dict['is_formset'] = questionaire.is_formset
+					
+				if questionaire.child is not None:
+					formset_dict['child'] = str(questionaire.child.form.name)
+				else:
+					formset_dict['child'] = str(None)
+				#set the level so that you can you can compare
+				formset_dict['level'] = 0
+				formset_dict['prev_level'] = level
+				formset_list.append(formset_dict.copy())
+				#set the parent and the 
+				parent = questionaire.form.name
+				level = formset_dict['level']
+				print formset_dict
+
+				if questionaire.child is not None:
+					
+					formset_dict['name'] = questionaire.child.form.name
+					formset_dict['data'] = QuestionsFormset(form_kwargs={'questionaire':questionaire.child.form.id,'parent':parent,'is_formset':questionaire.child.is_formset},prefix=questionaire.child.form.name) 
+					formset_dict['parent'] = parent
+					formset_dict['is_formset'] = questionaire.child.is_formset
+					
+					if questionaire.child.child is not None:
+						formset_dict['child'] = str(questionaire.child.child.form.name)
+					else:
+						formset_dict['child'] = str(None)
+					
+					formset_dict['level'] = 1
+					formset_dict['prev_level'] = 0
+						
+					#set for the next level down.
+					parent = questionaire.child.form.name
+					#level = formset_dict['level']
+					print formset_dict
+
+					formset_list.append(formset_dict.copy())			
+
+
+					#this is the child of the child.
+					if questionaire.child.child is not None:
+					
+						formset_dict['name'] = questionaire.child.child.form.name
+						formset_dict['data'] = QuestionsFormset(form_kwargs={'questionaire':questionaire.child.child.form.id,'parent':parent,'is_formset':questionaire.child.child.is_formset},prefix=questionaire.child.child.form.name) 
+						formset_dict['parent'] = parent
+						formset_dict['is_formset'] = questionaire.child.child.is_formset
+					
+						if questionaire.child.child.child is not None:
+							formset_dict['child'] = str(questionaire.child.child.child.form.name)
+						else:
+							formset_dict['child'] = str(None)
+						
+						formset_dict['level'] = 2
+						formset_dict['prev_level'] = 1
+										
+						#set for the next level down.
+						parent = questionaire.child.child.form.name
+						level = formset_dict['level']
+						print formset_dict
+						formset_list.append(formset_dict.copy())
+						
+						#this is the child of the child.
+						if questionaire.child.child.child is not None:
+						
+							formset_dict['name'] = questionaire.child.child.child.form.name
+							formset_dict['data'] = QuestionsFormset(form_kwargs={'questionaire':questionaire.child.child.child.form.id,'parent':parent,'is_formset':questionaire.child.child.child.is_formset},prefix=questionaire.child.child.child.form.name) 
+							formset_dict['parent'] = parent
+							formset_dict['is_formset'] = questionaire.child.child.child.is_formset
+					
+							'''
+							if questionaire.child.child.child is not None:
+								formset_dict['child'] = str(questionaire.child.child.child.form.name)
+							else:
+								formset_dict['child'] = str(None)
+							'''
+							#this is the last level of nesting that needs to be done.
+							formset_dict['child'] = str(None)
+							formset_dict['prev_level'] = 2
+						
+							formset_dict['level'] = 3
+								
+							#set for the next level down.
+							parent = questionaire.child.child.child.form.name
+							level = formset_dict['level']
+							print formset_dict
+
+							formset_list.append(formset_dict.copy())
+
+		return render(request, 'dynaform/questionaire_v3.html', {'formsets': formset_list})
+
+	except LegalQuestionaire.DoesNotExist:
+		raise Http404("LegalQuestionaire does not exist")	
+	return render(request, 'dynaform/questionaire_v3.html', {'formsets': formset_list})
+
+def formset_view(request,lq_id):
+	#this creates formsets and posts it. This is a simple example.
 	try:
 		p = LegalQuestionaire.objects.get(pk=lq_id)
 		form = QuestionsFormNest(request.POST,questionaire=lq_id)
@@ -25,65 +705,25 @@ def multi_formset_view(request,lq_id):
 		print "POST QUERY DICT"
 		print request.POST
 		if request.method == 'POST':
-			formset = QuestionsFormset(request.POST,form_kwargs={'questionaire':lq_id})
+			formset = QuestionsFormset(request.POST,form_kwargs={'questionaire':lq_id},prefix='books')
 			if formset.is_valid():
 				print "\n\n\n\n\n"
 				print "FORMSET DATA"
 				print formset.cleaned_data
 				
 				for form in formset:
-					print "\n\n"
-					print "FORM Data "
-					print(form.cleaned_data)
+					print ""
+					#print "FORM Data "
+					#print(form.cleaned_data)
 			else:
 				print "it didn'st work"
 		else:
-			formset = QuestionsFormset(form_kwargs={'questionaire':lq_id})
-			print "nothing"
+			formset = QuestionsFormset(form_kwargs={'questionaire':lq_id},prefix='books')
 		return render(request, 'dynaform/questionaire_v1.html', {'formset': formset})
 
 	except LegalQuestionaire.DoesNotExist:
 		raise Http404("LegalQuestionaire does not exist")	
 	return render(request, 'dynaform/questionaire_v1.html', {'formset': formset})
-
-
-
-def formset_view(request,lq_id):
-	#this creates formsets and posts it. This is a simple example.
-	try:
-		p = LegalQuestionaire.objects.get(pk=lq_id)
-		form = QuestionsForm(request.POST,questionaire=lq_id)
-		QuestionsFormset = formset_factory(QuestionsForm)
-		print "\n\n\n\n\n"
-		print "POST QUERY DICT"
-		print request.POST
-		if request.method == 'POST':
-			formset = QuestionsFormset(request.POST,form_kwargs={'questionaire':lq_id})
-			
-
-			if formset.is_valid():
-				
-				print "\n\n\n\n\n"
-				print "FORMSET DATA"
-				print formset.cleaned_data
-				
-				for form in formset:
-					print "\n\n"
-					print "FORM Data "
-					print(form.cleaned_data)
-			else:
-				print "it didn'st work"
-		else:
-			formset = QuestionsFormset(form_kwargs={'questionaire':lq_id})
-			print "nothing"
-		return render(request, 'dynaform/questionaire_v1.html', {'formset': formset})
-
-	except LegalQuestionaire.DoesNotExist:
-		raise Http404("LegalQuestionaire does not exist")	
-	return render(request, 'dynaform/questionaire_v1.html', {'formset': formset})
-
-
-
 
 def questionaire_view(request,lq_id):
 	try:
@@ -152,28 +792,3 @@ def legal_template_upload_view(request):
 	return render(
 		request,'dynaform/legal_template_form.html',{'documents': documents, 'form': form},
 	)
-
-'''
-class QuestionaireView(CreateView):
-	template_name = 'dynaform/questionaire.html'
-	form_class = QuestionsForm
-		
-	success_url='/'
-
-	def form_valid(self, form):
-		# This method is called when valid form data has been POSTed.
-		# It should return an HttpResponse.
-		#form.send_email()
-		return super(QuestionaireView, self).form_valid(form)
-
-
-	def get_context_data(self,**kwargs):
-		d = super(QuestionaireView,self).get_context_data(**kwargs)
-		d['questionaire']= self.get_object()
-		return d
-
-	def get_form_kwargs(self):
-		kwargs = super(QuestionaireView,self).get_form_kwargs()
-		kwargs['questionaire'] = self.get_object()
-		return kwargs
-'''
