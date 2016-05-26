@@ -119,11 +119,12 @@ def form_to_docx(request,slug):
 			if_errors = False
 			print json.dumps(formset_list[0]['data'].data,sort_keys=True, indent=4)
 			for formset in formset_list:
+				print ""
 				print "check for formset" +str(formset['name'])
 				
 				#print json.dumps(formset['data'].data,sort_keys=True, indent=4)
 				if formset['data'].is_valid():
-					
+					print formset['data'].cleaned_data
 					cleaned_data = cleaned_data + formset['data'].cleaned_data
 
 				else:
@@ -132,7 +133,7 @@ def form_to_docx(request,slug):
 			
 			#print "thisis the cleaned data"
 			#print the cleaned data out
-			#print json.dumps(cleaned_data,sort_keys=True, indent=4)
+			print json.dumps(cleaned_data,sort_keys=True, indent=4)
 			
 
 
@@ -144,15 +145,11 @@ def form_to_docx(request,slug):
 				while i<length:
 					data = cleaned_data[i]
 					#print data['parent_name']
-					print data['form_name']+ "  is this a formset ?" + data['is_formset']
 							
 					if data['parent_name']!="None":
 						for append_data in cleaned_data:
 							
 							if data['parent_name'] == append_data['form_name'] and data['parent_id'] == append_data['form_id']:
-								#print "match!"
-								#print data['form_name']
-								#check if it's a formset				
 								append_data['child'] =data['form_name']
 								if data['is_formset'] =="True":
 									if data['form_name'] not in append_data:
@@ -172,10 +169,7 @@ def form_to_docx(request,slug):
 									
 									for child_data in append_data[child1]:
 
-										if data['parent_name'] == child_data['form_name'] and data['parent_id'] == child_data['form_id']:
-											#print "match!"
-											#print data['form_name']
-											#check if it's a formset				
+										if data['parent_name'] == child_data['form_name'] and data['parent_id'] == child_data['form_id']:			
 											child_data['child'] =data['form_name']
 											if data['is_formset'] =="True":
 												if data['form_name'] not in child_data:
@@ -204,7 +198,32 @@ def form_to_docx(request,slug):
 														
 														del cleaned_data[i]
 														break
-													
+													elif 'child' in child_data_1:
+														child3 = child_data_1['child']
+														if isinstance(child_data_1[child3],list):
+															print child3 + " is a list"
+															for child_data_2 in child_data_1[child3]:
+															
+																if data['parent_name'] == child_data_2['form_name'] and data['parent_id'] == child_data_1['form_id']:
+																	
+																	child_data_2['child'] =data['form_name']
+																	if data['is_formset'] =="True":
+																		if data['form_name'] not in child_data_2:
+																			child_data_2[data['form_name']] = [] 
+																		child_data_2[data['form_name']].append(data)
+																	else:
+																		child_data_2[data['form_name']] = data
+																	
+																	del cleaned_data[i]
+																	break
+														elif isinstance(child_data[child2],dict):
+															if data['parent_name'] == child_data_1[child3]['form_name'] and data['parent_id'] == append_data[child1]['form_id']:
+																#print "match!" + child1
+																child_data_1[child3][data['form_name']] = data	
+																child_data_1[child3]['child'] = data['form_name']
+																
+																del cleaned_data[i]
+																break	
 											elif isinstance(child_data[child2],dict):
 												if data['parent_name'] == append_data[child1]['form_name'] and data['parent_id'] == append_data[child1]['form_id']:
 													#print "match!" + child1
@@ -213,6 +232,8 @@ def form_to_docx(request,slug):
 													
 													del cleaned_data[i]
 													break	
+																							
+
 
 								elif isinstance(append_data[child1],dict):
 									print child1 +" is a dict"
