@@ -77,8 +77,8 @@
 						{%if formset.is_formset%}
 						<a href="#" id="add-item-button" class="btn btn-info add-item">Add Item</a>	<br/>
 						{%endif%}
-						<!--<a href="#" id="add-item-button" class="btn btn-info check-current"> Current Class </a>	<br/>	-->
-						
+
+
 						{%if formset.level > 0%}
 						{#<a href="#" id="" class="btn btn-info get-parent"> Parent Class</a>#}
 						{%endif%}
@@ -88,7 +88,6 @@
 				{%else%}
 					{# close all of the divs preceding thiss #}
 				    {% for i in "012345"%}
-						{#<!-- closed {{forloop.counter0}} <{{formset.level}} times-->#}
 						{%if forloop.counter0 <= formset.level%}
 						</div>	
 						{%endif%}
@@ -141,7 +140,7 @@
 				{%if formset.is_formset%}
 				<a href="#" id="add-item-button button-item-__prefix__" class="btn btn-info add-item">Add Item</a>	<br/>
 				{%endif%}
-				<!--<a href="#" id="add-item-button" class="btn btn-info check-current"> Current Class </a>	<br/>	-->
+				{#<!--<a href="#" id="add-item-button" class="btn btn-info check-current"> Current Class </a>	<br/>	-->#}
 				
 
 				{# this does logic to see if the formset needs to be closed#}
@@ -150,7 +149,6 @@
 				{%else%}
 					{# close all of the divs preceding thiss #}
 				    {% for i in "012345"%}
-						{#<!-- closed {{forloop.counter0}} <{{formset.level}} times-->#}
 						{%if forloop.counter0 <= formset.level%}
 						</div>	
 						{%endif%}
@@ -180,9 +178,7 @@ $( document ).ready(function() {
         : jQuery("<p>").append(this.eq(0).clone()).html();
 	};
     
-    //$('.add-item').click(function(ev) {
     $('form').on('click','.add-item',function(ev){ 
-        //console.log("Clicked!")
         ev.preventDefault();
         //get the current form
         form = get_form(this)
@@ -199,20 +195,12 @@ $( document ).ready(function() {
 		form_name =get_form_name(form)
 
         //this gets the form size based on 
-
-        //var count = $("form").children(selector).size();
         var count = $(form_id).children(".form-item ").size();
-        //console.log("count = "+ count)
         empty_form_id = "#"+form_name+"-__form_prefix__"
-        //console.log("form id")
-        //console.log(empty_form_id)
 
         var tmplMarkup = $('#empty_formsets').find(empty_form_id).children(".form-item").parent();
-        //console.log("object to string")
         
         complete_string = $('#empty_formsets').find(empty_form_id).children(".form-item").parent().html()
-        //console.log("form string")
-        //console.log(complete_string)
 
         //replace for the base
 		compiled_form = replace_prefix_in_form(form ,complete_string);
@@ -220,7 +208,6 @@ $( document ).ready(function() {
         //check for children to add the templates
         //note this should be a recursive function
         if( $(form_id).has(".child").length ){
-			//console.log("has a child");
 
 			//replace for the second level.
 			var current_form = $(form_id).find(".child")
@@ -228,7 +215,6 @@ $( document ).ready(function() {
 
 			if($(current_form).has(".child").length){
 				
-				//console.log($(current_form).find(".child").attr('id'))
 				//replace for the third level
 				current_form = $(current_form).find(".child")
 				compiled_form = replace_prefix_in_form(current_form,compiled_form);
@@ -259,31 +245,27 @@ $( document ).ready(function() {
 
 	//this will update all of the data within the form
 	function update_form_management_data(form){
-		//console.log("update_form_management_data")
+
 		//select only the real forms and not the empty forms
 		real_forms = $('#items-form-container');
 
 		//loop through the real forms (to update the )
 		real_forms.find('.form').each(function(){
 		
-	        //form_name = $(this).attr('id');
-	    	//form_id = "#"+ $(this).attr('id');
+			//get the form id and form name for all 
 			form_id = get_form_id(this) 
 			form_name =get_form_name(this)
-			//console.log("current form "+form_id);
-	        
-	        //console.log("current form "+form_name);
 
 	        var count = $(form_id).children(".form-item ").size() -1;
 
-	        //console.log("items for this form")
 	        //loop through all the items values
 			$(this).children(".form-item").each(function(){
 				//shows the item number (you need to remove item from it.)
 				console.log(form_name);
 				//console.log(this)
 				console.log(get_vague_form_item_id(this))
-				//get the form id
+				
+				//get the form id from one of the inputs, this uses some of the
 				var item_form_id = get_vague_form_item_id(this)
 				
 				//set the item id 
@@ -348,7 +330,6 @@ $( document ).ready(function() {
 	//note this does add size so a todo would be to remove the total forms
 	function replace_prefix_in_form(form,complete_form_string){
         //regex strings and replace  
-    	//form_id = "#"+ $(form).attr('id');
         form_id = get_form_id(form) 
         form_name =get_form_name(form)
         
@@ -369,14 +350,6 @@ $( document ).ready(function() {
 
         //form set the form id
 
-        //need to replace all of the rest of the __prefix__ after all of the ids are done.
-        /*
-        var regex_string =  "__prefix__";
-    	var replace_string = count;
-	    var regex = new RegExp(regex_string,"g");
-        var complete_form_string = complete_form_string.replace(regex, replace_string);
-        */
-
         //need to change all of the form prefixes with a unique id.
         
         var regex_string = "__form_prefix__";
@@ -385,25 +358,15 @@ $( document ).ready(function() {
         var complete_form_string = complete_form_string.replace(regex, replace_string);
 
         /*
+        note
 		make this recursive!
 
 		check for children 
 
 		just do the prefix in the form again this should solve the problem
-
-
 		*/
 		
 
-    	//update the "internal" management data
-        //this updates the form id.
-        //$('#id_'+form_name+'-'+count+'-form_id').attr('value', count);  
-
-	
-		
-        //adding a total form
-		$('#id_'+form_name+'-TOTAL_FORMS').attr('value', count+1);  
-        
 		return complete_form_string;
 	}
 
@@ -414,7 +377,6 @@ $( document ).ready(function() {
 
 
     //this gets the current form
-   	//$('.check-current').click(function(ev){
 	$('form').on('click','.check-current',function(ev){ 
 		ev.preventDefault();
 		form_id = get_form_id(this)
@@ -463,27 +425,6 @@ $( document ).ready(function() {
 
 		return parent
     }
-
-
-    function get_form_parent_item(current_form){
-    	//console.log("get_form_parent")
-    	var form= $(current_form).parent(".form").attr('id');
-    	//var parents = $(this).parents();
-    	var parent = $("#"+form).parent(".form")
-    	var item = $(parent).children(".form-item")
-    	//.attr('id');
-
-		return parent;
-    }
-
-
-
-
-    function get_form_values(form,value_name){
-    	values= $(form).children(".form-item").children()
-    }
-
-
 
 
 });
