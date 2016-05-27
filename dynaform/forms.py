@@ -58,7 +58,15 @@ class QuestionsFormNest(forms.Form):
 		questionaire = LegalQuestionaire.objects.get(pk=self.questionaire)
 		questions= Questions.objects.filter(questionaire=questionaire)
 		for question in questions:
-			self.fields['%s' % question.question_name] = FIELD_TYPES[question.field_type](label=question.label)
+			#text areas 
+			if question.field_type==0:
+				self.fields['%s' % question.question_name] = FIELD_TYPES[question.field_type](label=question.label,widget=forms.Textarea)
+			#booleans
+			elif question.field_type==2:
+				self.fields['%s' % question.question_name] = FIELD_TYPES[question.field_type](label=question.label,widget=forms.RadioSelect(choices= ((True, 'Yes',), (False, 'No',))))
+			#all other fields
+			else: 
+				self.fields['%s' % question.question_name] = FIELD_TYPES[question.field_type](label=question.label)
 		
 		#this creates some of the management of questions
 		self.fields['is_deleted'] = forms.CharField(widget=forms.HiddenInput(),max_length=255,initial=str(False))

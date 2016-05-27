@@ -126,7 +126,7 @@ def form_to_docx(request,slug):
 				if formset['data'].is_valid():
 					print formset['data'].cleaned_data
 					cleaned_data = cleaned_data + formset['data'].cleaned_data
-
+					
 				else:
 					print formset['data'].errors
 					if_errors = True
@@ -147,6 +147,7 @@ def form_to_docx(request,slug):
 					#print data['parent_name']
 							
 					if data['parent_name']!="None":
+						
 						for append_data in cleaned_data:
 							
 							if data['parent_name'] == append_data['form_name'] and data['parent_id'] == append_data['form_id']:
