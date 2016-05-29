@@ -1,0 +1,8 @@
+{%extends 'base.html'%}
+    
+{% block content %}
+    <h5>Your file is below</h5>
+    <a href="{{ MEDIA_URL }}documents/{{ filename }}">Download File</a> 
+
+    <p> file name = {{ filename }}</p>
+{% endblock %}

@@ -4,9 +4,11 @@ from django.views.generic import View
 from django.http import Http404
 from django.http import HttpResponseRedirect
 from django.forms.formsets import formset_factory
+from django.core.files import File
+
 from models import LegalQuestionaire,Questions,LegalTemplates
 from models import FormBaseLevel, FormLevelOne, FormLevelTwo,FormLevelThree
-from models import LegalTemplates
+from models import LegalTemplates, LegalDocuments
 from forms import QuestionsForm,LegalTemplatesUploadForm, QuestionsFormNest
 import json
 import datetime
@@ -20,6 +22,23 @@ from django.conf import settings
 class HomeView(ListView):
 	template_name = 'base.html'
 	queryset = LegalQuestionaire.objects.all()
+
+def docx_download_page(request,slug,uuid):
+	try: 
+		doc= LegalDocuments.objects.get(slug=slug,unique_id=uuid)
+		
+		file_name =  str(doc.filename())
+		print file_name
+		return render(request, 'dynaform/file.html', {'filename':file_name})
+
+	except LegalDocuments.DoesNotExist:
+		raise Http404("Legal document does not exist")	
+
+	return render(request, 'dynaform/file.html', {'filename':file_name})
+
+
+
+
 
 def form_to_docx(request,slug):
 
@@ -140,174 +159,133 @@ def form_to_docx(request,slug):
 
 			if if_errors ==False:		
 				#This can be done in another function
-				i = 0
+				counter = 0
 				length = len(cleaned_data)
-				while i<length:
-					data = cleaned_data[i]
-					#print data['parent_name']
-							
+				while counter<length:
+
+					data = cleaned_data[counter]
+
 					if data['parent_name']!="None":
-						
+
 						for append_data in cleaned_data:
+
+							cleaned_data,length,counter = format_form_data(append_data,cleaned_data,counter,length)		
+					
+					else:
+						counter = counter + 1
+
+				print cleaned_data
 							
-							if data['parent_name'] == append_data['form_name'] and data['parent_id'] == append_data['form_id']:
-								append_data['child'] =data['form_name']
-								if data['is_formset'] =="True":
-									if data['form_name'] not in append_data:
-										append_data[data['form_name']] = [] 
-									append_data[data['form_name']].append(data)
-								else:
-									append_data[data['form_name']] = data
+				'''
+				if data['parent_name']!="None":
+					
+					for append_data in cleaned_data:
+						
+						if data['parent_name'] == append_data['form_name'] and data['parent_id'] == append_data['form_id']:
+							append_data['child'] =data['form_name']
+							if data['is_formset'] =="True":
+								if data['form_name'] not in append_data:
+									append_data[data['form_name']] = [] 
+								append_data[data['form_name']].append(data)
+							else:
+								append_data[data['form_name']] = data
+							
+							#append_data[data['form_name']] = data
+							del cleaned_data[i]
+							break
+							
+						elif 'child' in append_data:
+							child1 = append_data['child']
+							if isinstance(append_data[child1],list):
+								print child1 + " is a list"
 								
-								#append_data[data['form_name']] = data
-								del cleaned_data[i]
-								break
-								
-							elif 'child' in append_data:
-								child1 = append_data['child']
-								if isinstance(append_data[child1],list):
-									print child1 + " is a list"
-									
-									for child_data in append_data[child1]:
+								for child_data in append_data[child1]:
 
-										if data['parent_name'] == child_data['form_name'] and data['parent_id'] == child_data['form_id']:			
-											child_data['child'] =data['form_name']
-											if data['is_formset'] =="True":
-												if data['form_name'] not in child_data:
-													child_data[data['form_name']] = [] 
-												child_data[data['form_name']].append(data)
-											else:
-												child_data[data['form_name']] = data
-											
-											del cleaned_data[i]
-											break
-										elif 'child' in child_data:
-											child2 = child_data['child']
-											if isinstance(child_data[child2],list):
-												print child2 + " is a list"
-												for child_data_1 in child_data[child2]:
-												
-													if data['parent_name'] == child_data_1['form_name'] and data['parent_id'] == child_data_1['form_id']:
-														
-														child_data_1['child'] =data['form_name']
-														if data['is_formset'] =="True":
-															if data['form_name'] not in child_data_1:
-																child_data_1[data['form_name']] = [] 
-															child_data_1[data['form_name']].append(data)
-														else:
-															child_data_1[data['form_name']] = data
-														
-														del cleaned_data[i]
-														break
-													elif 'child' in child_data_1:
-														child3 = child_data_1['child']
-														if isinstance(child_data_1[child3],list):
-															print child3 + " is a list"
-															for child_data_2 in child_data_1[child3]:
-															
-																if data['parent_name'] == child_data_2['form_name'] and data['parent_id'] == child_data_1['form_id']:
-																	
-																	child_data_2['child'] =data['form_name']
-																	if data['is_formset'] =="True":
-																		if data['form_name'] not in child_data_2:
-																			child_data_2[data['form_name']] = [] 
-																		child_data_2[data['form_name']].append(data)
-																	else:
-																		child_data_2[data['form_name']] = data
-																	
-																	del cleaned_data[i]
-																	break
-														elif isinstance(child_data[child2],dict):
-															if data['parent_name'] == child_data_1[child3]['form_name'] and data['parent_id'] == append_data[child1]['form_id']:
-																#print "match!" + child1
-																child_data_1[child3][data['form_name']] = data	
-																child_data_1[child3]['child'] = data['form_name']
-																
-																del cleaned_data[i]
-																break	
-											elif isinstance(child_data[child2],dict):
-												if data['parent_name'] == append_data[child1]['form_name'] and data['parent_id'] == append_data[child1]['form_id']:
-													#print "match!" + child1
-													child_data[child2][data['form_name']] = data	
-													child_data[child2]['child'] = data['form_name']
-													
-													del cleaned_data[i]
-													break	
-																							
-
-
-								elif isinstance(append_data[child1],dict):
-									print child1 +" is a dict"
-
-									if data['parent_name'] == append_data[child1]['form_name'] and data['parent_id'] == append_data[child1]['form_id']:
-										#print "match!" + child1
-										append_data[child1][data['form_name']] = data	
-										append_data[child1]['child'] = data['form_name']
+									if data['parent_name'] == child_data['form_name'] and data['parent_id'] == child_data['form_id']:			
+										child_data['child'] =data['form_name']
 										if data['is_formset'] =="True":
-											if data['form_name'] not in append_data[child1]:
-												append_data[child1][data['form_name']] = [] 
-											append_data[child1][data['form_name']].append(data)
+											if data['form_name'] not in child_data:
+												child_data[data['form_name']] = [] 
+											child_data[data['form_name']].append(data)
 										else:
-											append_data[child1][data['form_name']] = data
-											
+											child_data[data['form_name']] = data
+										
 										del cleaned_data[i]
 										break
-									
-
-
-									'''
-									elif 'child' in append_data[child1]:
-										child2 = append_data[child1]['child']
-										#print "match!" + child1 +" "+  child2
-										
-										if data['parent_name'] == append_data[child1][child2]['form_name'] and data['parent_id'] == append_data[child1][child2]['form_id']:
-											#print "match!"
-											append_data[child1][child2][data['form_name']] = data
-											append_data[child1][child2]['child'] = data['form_name']
-											del cleaned_data[i]
-											break
-										
-										elif 'child' in append_data[child1][child2]['child']:
-											child3 = append_data[child1][child2]['child']
+									elif 'child' in child_data:
+										child2 = child_data['child']
+										if isinstance(child_data[child2],list):
+											print child2 + " is a list"
+											for child_data_1 in child_data[child2]:
 											
-											if data['parent_name'] == append_data[child1][child2][child3]['form_name'] and data['parent_id'] == append_data[child1][child2][child3]['form_id']:
-												#print "match!"
-												append_data[child1][child2][child3][data['form_name']] = data
+												if data['parent_name'] == child_data_1['form_name'] and data['parent_id'] == child_data_1['form_id']:
+													
+													child_data_1['child'] =data['form_name']
+													if data['is_formset'] =="True":
+														if data['form_name'] not in child_data_1:
+															child_data_1[data['form_name']] = [] 
+														child_data_1[data['form_name']].append(data)
+													else:
+														child_data_1[data['form_name']] = data
+													
+													del cleaned_data[i]
+													break
+												elif 'child' in child_data_1:
+													child3 = child_data_1['child']
+													if isinstance(child_data_1[child3],list):
+														print child3 + " is a list"
+														for child_data_2 in child_data_1[child3]:
+														
+															if data['parent_name'] == child_data_2['form_name'] and data['parent_id'] == child_data_1['form_id']:
+																
+																child_data_2['child'] =data['form_name']
+																if data['is_formset'] =="True":
+																	if data['form_name'] not in child_data_2:
+																		child_data_2[data['form_name']] = [] 
+																	child_data_2[data['form_name']].append(data)
+																else:
+																	child_data_2[data['form_name']] = data
+																
+																del cleaned_data[i]
+																break
+													elif isinstance(child_data[child2],dict):
+														if data['parent_name'] == child_data_1[child3]['form_name'] and data['parent_id'] == append_data[child1]['form_id']:
+															#print "match!" + child1
+															child_data_1[child3][data['form_name']] = data	
+															child_data_1[child3]['child'] = data['form_name']
+															
+															del cleaned_data[i]
+															break	
+										elif isinstance(child_data[child2],dict):
+											if data['parent_name'] == append_data[child1]['form_name'] and data['parent_id'] == append_data[child1]['form_id']:
+												#print "match!" + child1
+												child_data[child2][data['form_name']] = data	
+												child_data[child2]['child'] = data['form_name']
+												
 												del cleaned_data[i]
-												break									
-											
-										break
-									'''	
-						length = length - 1
-					else:
-						i = i + 1
-				
+												break	
+																						
 
-				'''
-				while i<length:
-					data = cleaned_data[i]
-					print data['parent_name']
-					if data['parent_name']!="None":
-						for append_data in cleaned_data:
-							print data['is_formset']
-							if data['parent_name'] == append_data['form_name'] and data['parent_id'] == append_data['form_id']:
-								#print "match!"
-								print data['form_name']				
-								append_data[data['form_name']] = data
-								append_data['child'] =data['form_name']
-								
-								del cleaned_data[i]
-								break
-								
-							elif 'child' in append_data:
-								child1 = append_data['child']
-								
+
+							elif isinstance(append_data[child1],dict):
+								print child1 +" is a dict"
+
 								if data['parent_name'] == append_data[child1]['form_name'] and data['parent_id'] == append_data[child1]['form_id']:
 									#print "match!" + child1
 									append_data[child1][data['form_name']] = data	
 									append_data[child1]['child'] = data['form_name']
-									
+									if data['is_formset'] =="True":
+										if data['form_name'] not in append_data[child1]:
+											append_data[child1][data['form_name']] = [] 
+										append_data[child1][data['form_name']].append(data)
+									else:
+										append_data[child1][data['form_name']] = data
+										
 									del cleaned_data[i]
+									break
+								
+
+
 								elif 'child' in append_data[child1]:
 									child2 = append_data[child1]['child']
 									#print "match!" + child1 +" "+  child2
@@ -329,10 +307,10 @@ def form_to_docx(request,slug):
 											break									
 										
 									break
-						length = length - 1
-					else:
-						i = i + 1
-				'''
+					'''	
+					
+				
+
 				#create the new file
 				
 				#f = open('/path/to/file')
@@ -346,9 +324,22 @@ def form_to_docx(request,slug):
 				file_name = settings.MEDIA_ROOT+'/'+str(template_file[0].docfile)
 				template = DocxTemplate(file_name)
 				template.render(cleaned_data[0])
-				end_file = settings.MEDIA_ROOT+'/daneltest-'+ str( datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p"))+'.docx'
+				end_file_name = 'daneltest-'+ str( datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p"))+'.docx'
+				end_file = settings.MEDIA_ROOT+'/'+end_file_name
 				template.save(end_file)
-						
+				
+
+				#this is going to create the file
+				savefile = open(end_file)
+				doc = LegalDocuments(docfile = File(savefile),group=slug)
+				doc.save()
+
+				print "unique id " + str(doc.unique_id)
+				print "group " + str(doc.group)
+
+				return HttpResponseRedirect('/form-to-docx/file/'+str(doc.group)+'/'+str(doc.unique_id) )	
+
+
 			#print the cleaned data out
 			print json.dumps(cleaned_data,sort_keys=True, indent=4)
 			
@@ -454,6 +445,52 @@ def form_to_docx(request,slug):
 		raise Http404("LegalQuestionaire does not exist")	
 	return render(request, 'dynaform/questionaire_v4.html', {'formsets': formset_list})
 
+
+#this is going to format the formdata into cleaned data
+def format_form_data(append_data,cleaned_data,counter,length):
+
+	data = cleaned_data[counter]
+
+	if isinstance(append_data,list):
+		for child_data in append_data:
+			#print child_data['form_name'] + " " + child_data['form_id']
+			if data['parent_name'] == child_data['form_name'] and data['parent_id'] == child_data['form_id']:
+				child_data['child'] =data['form_name']
+				if data['is_formset'] =="True":
+					if data['form_name'] not in child_data:
+						child_data[data['form_name']] = [] 
+					child_data[data['form_name']].append(data)
+				else:
+					child_data[data['form_name']] = data
+				
+				#append_data[data['form_name']] = data
+				del cleaned_data[counter]
+				length = length - 1
+				break
+			elif 'child' in child_data:
+				child = child_data['child']
+				cleaned_data,length,counter = format_form_data(child_data[child],cleaned_data,counter,length)
+							
+	elif isinstance(append_data,dict):
+		#print append_data['form_name'] + " " + str(append_data['form_id'])
+		if data['parent_name'] == append_data['form_name'] and data['parent_id'] == append_data['form_id']:
+			append_data['child'] =data['form_name']
+			if data['is_formset'] =="True":
+				if data['form_name'] not in append_data:
+					append_data[data['form_name']] = [] 
+				append_data[data['form_name']].append(data)
+			else:
+				append_data[data['form_name']] = data
+			
+			#append_data[data['form_name']] = data
+			del cleaned_data[counter]
+			length = length -1 
+
+		elif 'child' in append_data:
+			child = append_data['child']
+			cleaned_data,length,counter = format_form_data(append_data[child],cleaned_data,counter,length)
+				
+	return cleaned_data,length,counter
 
 
 def multi_formset_view(request,slug):

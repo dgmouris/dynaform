@@ -2,7 +2,8 @@ from __future__ import unicode_literals
 
 from django.db import models
 from django.utils.text import slugify
-
+import uuid
+import os
 # Create your models here.
 
 class LegalQuestionaire(models.Model):
@@ -29,6 +30,7 @@ FIELD_TYPE_CHOICES=(
 	(1,'charfield'),
 	(2,'boolean'),
 	(3,'integer'),
+	(4,'select'),
 	)
 
 class Questions(models.Model):
@@ -45,7 +47,22 @@ class Questions(models.Model):
 
 class LegalDocuments(models.Model):
 	docfile = models.FileField(upload_to='documents/')
+	group = models.CharField(max_length=255,default='form_group')
+	slug = models.SlugField(default="abc",editable=False)
+	unique_id=models.CharField(max_length=100, blank=True, unique=True, default=uuid.uuid4)
 
+	def filename(self):
+		return os.path.basename(self.docfile.name)
+
+	def __unicode__(self):
+		return unicode(str(self.group) + " " + str(self.unique_id))
+
+	def save(self):
+		super(LegalDocuments, self).save()
+		self.slug = slugify(self.group)
+		super(LegalDocuments, self).save()
+
+	
 class LegalTemplates(models.Model):
 	group = models.CharField(max_length=255,default='form_group')
 	slug = models.SlugField(default="abc",editable=False)	
